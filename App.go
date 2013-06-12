@@ -8,6 +8,22 @@ import (
 
 var _T func(s string) *uint16 = syscall.StringToUTF16Ptr
 
+func Max(a, b int32) int32{
+    if a>b {
+        return a
+    } else {
+        return b
+    }
+}
+
+func Min(a, b int32) int32{
+    if a<b {
+        return a
+    } else {
+        return b
+    }
+}
+
 type EventHandler func(hwnd HWND, msg uint32, wParam, lParam uintptr) uintptr
 type EvnatHandlerMap map[uint32]EventHandler
 type App struct {
@@ -15,6 +31,7 @@ type App struct {
     Title string
     HInstance HINSTANCE
     HWnd HWND
+    BackgroundBrush HBRUSH
     EventMap EvnatHandlerMap
 }
 
@@ -71,7 +88,7 @@ func (app *App) Init(appName, title string) (error){
     wc.HCursor = hCursor
     wc.CbClsExtra = 0
     wc.CbWndExtra = 0
-    wc.HbrBackground = HBRUSH(GetStockObject(WHITE_BRUSH))
+    wc.HbrBackground = app.BackgroundBrush
     wc.LpszMenuName = nil
     wc.LpszClassName = szAppName
 
@@ -105,6 +122,7 @@ func (app *App) Init(appName, title string) (error){
 func NewApp() (*App, error){
     app := &App{
         EventMap: make(EvnatHandlerMap),
+        BackgroundBrush: HBRUSH(GetStockObject(WHITE_BRUSH)),
     }
     
     return app, nil
