@@ -31,6 +31,7 @@ type App struct {
     Title string
     HInstance HINSTANCE
     HWnd HWND
+    Icon HICON
     BackgroundBrush HBRUSH
     EventMap EvnatHandlerMap
 }
@@ -53,17 +54,6 @@ func (app *App) Run(){
 func (app *App) Init(appName, title string) (error){
     app.AppName  = appName
     app.Title = title
-    
-    hInst := GetModuleHandle(nil)
-    if hInst == 0 {
-        panic("GetModuleHandle")
-    }
-    app.HInstance = hInst
-    
-    hIcon := LoadIcon(0, (*uint16)(unsafe.Pointer(uintptr(IDI_APPLICATION))))
-    if hIcon == 0 {
-        panic("LoadIcon")
-    }
 
     hCursor := LoadCursor(0, MAKEINTRESOURCE(IDC_ARROW))
     if hCursor == 0 {
@@ -83,8 +73,8 @@ func (app *App) Init(appName, title string) (error){
     wc.CbSize = uint32(unsafe.Sizeof(wc))
     wc.Style = CS_HREDRAW | CS_VREDRAW
     wc.LpfnWndProc = syscall.NewCallback(_default_wndproc)
-    wc.HInstance = hInst
-    wc.HIcon = hIcon
+    wc.HInstance = app.HInstance
+    wc.HIcon = app.Icon
     wc.HCursor = hCursor
     wc.CbClsExtra = 0
     wc.CbWndExtra = 0
@@ -107,7 +97,7 @@ func (app *App) Init(appName, title string) (error){
         CW_USEDEFAULT,
         HWND_TOP,
         0,
-        hInst,
+        app.HInstance,
         nil)
 
     if hWnd == 0 {
@@ -120,9 +110,16 @@ func (app *App) Init(appName, title string) (error){
 }
 
 func NewApp() (*App, error){
+    hInst := GetModuleHandle(nil)
+    if hInst == 0 {
+        panic("GetModuleHandle")
+    }    
+    
     app := &App{
         EventMap: make(EvnatHandlerMap),
         BackgroundBrush: HBRUSH(GetStockObject(WHITE_BRUSH)),
+        Icon: LoadIcon(0, (*uint16)(unsafe.Pointer(uintptr(IDI_APPLICATION)))),
+        HInstance: hInst,
     }
     
     return app, nil
