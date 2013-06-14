@@ -31,8 +31,9 @@ type App struct {
     Title string
     HInstance HINSTANCE
     HWnd HWND
-    Icon HICON
+    Icon HICON    
     BackgroundBrush HBRUSH
+    MenuName LPCTSTR
     EventMap EvnatHandlerMap
 }
 
@@ -79,7 +80,7 @@ func (app *App) Init(appName, title string) (error){
     wc.CbClsExtra = 0
     wc.CbWndExtra = 0
     wc.HbrBackground = app.BackgroundBrush
-    wc.LpszMenuName = nil
+    wc.LpszMenuName = app.MenuName
     wc.LpszClassName = szAppName
 
     if atom := RegisterClassEx(&wc); atom == 0 {
@@ -120,6 +121,7 @@ func NewApp() (*App, error){
         BackgroundBrush: HBRUSH(GetStockObject(WHITE_BRUSH)),
         Icon: LoadIcon(0, (*uint16)(unsafe.Pointer(uintptr(IDI_APPLICATION)))),
         HInstance: hInst,
+        MenuName: nil,
     }
     
     return app, nil
