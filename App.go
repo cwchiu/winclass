@@ -6,6 +6,10 @@ import (
     "unsafe"
 )
 
+const (
+    MSG_IGNORE = 9999
+)
+
 var _T func(s string) *uint16 = syscall.StringToUTF16Ptr
 
 func Max(a, b int32) int32{
@@ -65,7 +69,10 @@ func (app *App) Init(appName, title string) (error){
 
     _default_wndproc := func (hwnd HWND, msg uint32, wParam, lParam uintptr) (result uintptr) {
         if app.EventMap[msg] != nil {
-            return app.EventMap[msg](hwnd, msg, wParam, lParam)
+            ret := app.EventMap[msg](hwnd, msg, wParam, lParam)
+            if ret != MSG_IGNORE {
+                return ret
+            }
         }
         return DefWindowProc(hwnd, msg, wParam, lParam)
     };
