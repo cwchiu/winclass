@@ -4,6 +4,7 @@ import (
     . "github.com/cwchiu/go-winapi"
     "syscall"
     "unsafe"
+    "errors"
 )
 
 const (
@@ -27,7 +28,7 @@ func Min(a, b int32) int32{
         return b
     }
 }
-
+                  
 type EventHandler func(hwnd HWND, msg uint32, wParam, lParam uintptr) uintptr
 type EvnatHandlerMap map[uint32]EventHandler
 type App struct {
@@ -56,18 +57,39 @@ func (app *App) Run(){
     }
 }
 
+func (app *App) RegisterClass(className *uint16, wndproc EventHandler, menuName *uint16, hCursor HCURSOR, background HBRUSH) (ATOM, error){
+    if hCursor == 0 {
+        return 0, errors.New("Cursor Handler invalid")
+    }
+    
+    var wc WNDCLASSEX
+    wc.CbSize = uint32(unsafe.Sizeof(wc))
+    wc.Style = CS_HREDRAW | CS_VREDRAW
+    wc.LpfnWndProc = syscall.NewCallback(wndproc)
+    wc.HInstance = app.HInstance
+    wc.HIcon = app.Icon
+    wc.HCursor = hCursor
+    wc.CbClsExtra = 0
+    wc.CbWndExtra = 0
+    wc.HbrBackground = background
+    wc.LpszMenuName = menuName
+    wc.LpszClassName = className
+
+    var atom ATOM
+    if atom = RegisterClassEx(&wc); atom == 0 {
+        return 0, errors.New("RegisterClassEx fail")
+    }
+    
+    return atom, nil
+}
+
 func (app *App) Init(appName, title string) (error){
     app.AppName  = appName
     app.Title = title
-
-    hCursor := LoadCursor(0, MAKEINTRESOURCE(IDC_ARROW))
-    if hCursor == 0 {
-        panic("LoadCursor")
-    }
     
-    szAppName := _T(appName)
+    szAppName := _T(appName)   
 
-    _default_wndproc := func (hwnd HWND, msg uint32, wParam, lParam uintptr) (result uintptr) {
+    _, err := app.RegisterClass(szAppName, func (hwnd HWND, msg uint32, wParam, lParam uintptr) (result uintptr) {
         if app.EventMap[msg] != nil {
             ret := app.EventMap[msg](hwnd, msg, wParam, lParam)
             if ret != MSG_IGNORE {
@@ -75,25 +97,12 @@ func (app *App) Init(appName, title string) (error){
             }
         }
         return DefWindowProc(hwnd, msg, wParam, lParam)
-    };
-
-    var wc WNDCLASSEX
-    wc.CbSize = uint32(unsafe.Sizeof(wc))
-    wc.Style = CS_HREDRAW | CS_VREDRAW
-    wc.LpfnWndProc = syscall.NewCallback(_default_wndproc)
-    wc.HInstance = app.HInstance
-    wc.HIcon = app.Icon
-    wc.HCursor = hCursor
-    wc.CbClsExtra = 0
-    wc.CbWndExtra = 0
-    wc.HbrBackground = app.BackgroundBrush
-    wc.LpszMenuName = app.MenuName
-    wc.LpszClassName = szAppName
-
-    if atom := RegisterClassEx(&wc); atom == 0 {
-        panic("RegisterClassEx")
+    }, app.MenuName, LoadCursor(0, MAKEINTRESOURCE(IDC_ARROW)), app.BackgroundBrush)
+    
+    if err != nil {
+        return err
     }
-
+    
     hWnd := CreateWindowEx(
         0,
         szAppName,
@@ -109,7 +118,7 @@ func (app *App) Init(appName, title string) (error){
         nil)
 
     if hWnd == 0 {
-        panic("CreateWindowEx")
+        return errors.New("CreateWindowEx fail")
     }
     
     app.HWnd = hWnd
