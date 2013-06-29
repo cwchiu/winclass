@@ -4,7 +4,8 @@ import (
     . "github.com/cwchiu/go-winapi"
     "syscall"
     "unsafe"
-    "errors"
+    "errors"    
+    "container/list"
 )
 
 const (
@@ -40,6 +41,7 @@ type App struct {
     BackgroundBrush HBRUSH
     MenuName LPCTSTR
     EventMap EvnatHandlerMap
+    ModelessDialogs list.List
 }
 
 func (app *App) On(msg uint32, handler EventHandler){    
@@ -51,10 +53,23 @@ func (app *App) Run(){
     UpdateWindow(app.HWnd)
 
     var msg MSG
-    for GetMessage(&msg, HWND_TOP, 0, 0) == TRUE {
+    for GetMessage(&msg, HWND_TOP, 0, 0) == TRUE {    
+        if app.ModelessDialogs.Len() > 0 {
+            for e := app.ModelessDialogs.Front(); e != nil; e = e.Next() {
+                if IsDialogMessage (e.Value.(HWND), &msg) {
+                    goto OutFor
+                }
+            }
+        }        
         TranslateMessage(&msg)
         DispatchMessage(&msg)
+OutFor: 
     }
+}
+
+func (app *App) AddModelessDialog(hwnd HWND) (error){
+    app.ModelessDialogs.PushBack(hwnd)
+    return nil
 }
 
 func (app *App) RegisterClass(className *uint16, wndproc EventHandler, menuName *uint16, hCursor HCURSOR, background HBRUSH) (ATOM, error){
@@ -138,6 +153,7 @@ func NewApp() (*App, error){
         Icon: LoadIcon(0, (*uint16)(unsafe.Pointer(uintptr(IDI_APPLICATION)))),
         HInstance: hInst,
         MenuName: nil,
+        ModelessDialogs: list.List{},
     }
     
     return app, nil
