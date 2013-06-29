@@ -141,6 +141,53 @@ func (app *App) Init(appName, title string) (error){
     return nil
 }
 
+func (app *App) InitWithDialog(appName string) (error){
+    app.AppName  = appName
+    //app.Title = title
+    
+    szAppName := _T(appName)   
+
+    var wc WNDCLASSEX
+    wc.CbSize = uint32(unsafe.Sizeof(wc))
+    wc.Style = CS_HREDRAW | CS_VREDRAW
+    wc.LpfnWndProc = syscall.NewCallback(func (hwnd HWND, msg uint32, wParam, lParam uintptr) (result uintptr) {
+        if app.EventMap[msg] != nil {
+            ret := app.EventMap[msg](hwnd, msg, wParam, lParam)
+            if ret != MSG_IGNORE {
+                return ret
+            }
+        }
+        return DefWindowProc(hwnd, msg, wParam, lParam)
+    })
+    wc.HInstance = app.HInstance
+    wc.HIcon = app.Icon
+    wc.HCursor = LoadCursor(0, MAKEINTRESOURCE(IDC_ARROW))
+    wc.CbClsExtra = 0
+    wc.CbWndExtra = DLGWINDOWEXTRA 
+    wc.HbrBackground = app.BackgroundBrush
+    wc.LpszMenuName = app.MenuName
+    wc.LpszClassName = szAppName
+
+    var atom ATOM
+    if atom = RegisterClassEx(&wc); atom == 0 {
+        return errors.New("RegisterClassEx fail")
+    }
+    
+    hWnd := CreateDialog (
+        app.HInstance,
+        szAppName,
+        HWND(0),
+        0)
+
+    if hWnd == 0 {
+        return errors.New("CreateDialog fail")
+    }
+    
+    app.HWnd = hWnd
+    
+    return nil
+}
+
 func NewApp() (*App, error){
     hInst := GetModuleHandle(nil)
     if hInst == 0 {
